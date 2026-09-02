@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -25,9 +26,13 @@ func capture(input io.Reader) []string {
 	return lines
 }
 
-func count(lines []string, countLines bool) int {
+func count(lines []string, countLines bool, countBytes bool) int {
 	if countLines {
 		return len(lines)
+	}
+
+	if countBytes {
+		return len(strings.Join(lines, "\n"))
 	}
 
 	total := 0
@@ -39,13 +44,17 @@ func count(lines []string, countLines bool) int {
 }
 
 func main() {
-	countLines := len(os.Args) > 1 && os.Args[1] == "-l"
+	countLines := flag.Bool("l", false, "Flag to determine if the program should count lines")
+	countBytes := flag.Bool("b", false, "Flag to determine if the program should count bytes")
+	flag.Parse()
 
 	lines := capture(os.Stdin)
-	result := count(lines, countLines)
+	result := count(lines, *countLines, *countBytes)
 
-	if countLines {
+	if *countLines {
 		fmt.Printf("Total lines: %d\n", result)
+	} else if *countBytes {
+		fmt.Printf("Total bytes: %d\n", result)
 	} else {
 		fmt.Printf("Total words: %d\n", result)
 	}
