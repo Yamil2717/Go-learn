@@ -8,10 +8,9 @@ import (
 	"strings"
 )
 
-func count(input io.Reader, countLines bool) int {
+func capture(input io.Reader) []string {
 	scanner := bufio.NewScanner(input)
-	wordCount := 0
-	lineCount := 0
+	var lines []string
 
 	for scanner.Scan() {
 		text := scanner.Text()
@@ -20,25 +19,30 @@ func count(input io.Reader, countLines bool) int {
 			break
 		}
 
-		lineCount++
-
-		words := strings.Fields(text)
-		wordCount += len(words)
+		lines = append(lines, text)
 	}
 
+	return lines
+}
+
+func count(lines []string, countLines bool) int {
 	if countLines {
-		return lineCount
+		return len(lines)
 	}
-	return wordCount
+
+	total := 0
+	for _, line := range lines {
+		total += len(strings.Fields(line))
+	}
+
+	return total
 }
 
 func main() {
-	countLines := false
-	if len(os.Args) > 1 && os.Args[1] == "-l" {
-		countLines = true
-	}
+	countLines := len(os.Args) > 1 && os.Args[1] == "-l"
 
-	result := count(os.Stdin, countLines)
+	lines := capture(os.Stdin)
+	result := count(lines, countLines)
 
 	if countLines {
 		fmt.Printf("Total lines: %d\n", result)
