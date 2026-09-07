@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"os/exec"
 	"runtime"
 )
@@ -13,13 +15,13 @@ func main() {
 	if runtime.GOOS == "windows" {
 		cmd = exec.Command("tasklist")
 	}
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	var stdoutBuf, stderrBuf bytes.Buffer
+	cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 	err := cmd.Run()
 	if err != nil {
-		log.Fatalf("cmd.Run() failed with %s\n", err)
+		log.Fatalf("cmd.Run() fallo con %s\n", err)
 	}
-	outStr, errStr := stdout.String(), stderr.String()
-	fmt.Printf("out:\n%s\nerr:\n%s\n", outStr, errStr)
+	outStr, errStr := stdoutBuf.String(), stderrBuf.String()
+	fmt.Printf("\nSalida:\n%s\nError:\n%s\n", outStr, errStr)
 }
