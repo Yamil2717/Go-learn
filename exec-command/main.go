@@ -13,12 +13,13 @@ func main() {
 	if runtime.GOOS == "windows" {
 		cmd = exec.Command("tasklist")
 	}
-	var b bytes.Buffer
-	cmd.Stdout = &b
-	cmd.Stderr = &b
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
 		log.Fatalf("cmd.Run() failed with %s\n", err)
 	}
-	fmt.Printf("combined out:\n%s\n", b.String())
+	outStr, errStr := stdout.String(), stderr.String()
+	fmt.Printf("out:\n%s\nerr:\n%s\n", outStr, errStr)
 }
