@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os/exec"
@@ -12,9 +13,12 @@ func main() {
 	if runtime.GOOS == "windows" {
 		cmd = exec.Command("tasklist")
 	}
-	out, err := cmd.CombinedOutput()
+	var b bytes.Buffer
+	cmd.Stdout = &b
+	cmd.Stderr = &b
+	err := cmd.Run()
 	if err != nil {
 		log.Fatalf("cmd.Run() failed with %s\n", err)
 	}
-	fmt.Printf("combined out:\n%s\n", string(out))
+	fmt.Printf("combined out:\n%s\n", b.String())
 }
