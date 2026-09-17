@@ -56,7 +56,7 @@ func TestTodoCLI(t *testing.T) {
 	cmdPath := filepath.Join(dir, binName)
 
 	t.Run("AddNewTask", func(t *testing.T) {
-		cmd := exec.Command(cmdPath, strings.Split(task, " ")...)
+		cmd := exec.Command(cmdPath, "-task", task)
 		fmt.Println(cmd)
 		err := cmd.Run()
 		if err != nil {
@@ -65,17 +65,63 @@ func TestTodoCLI(t *testing.T) {
 	})
 
 	t.Run("ListTasks", func(t *testing.T) {
-		cmd := exec.Command(cmdPath)
+		cmd := exec.Command(cmdPath, "-list")
 		fmt.Println(cmd)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		expected := task + "\n"
+		want := fmt.Sprintf("Title: %s, Done: false, ", task)
+		got := strings.TrimSpace(string(out))
+		if !strings.Contains(got, want) {
+			t.Errorf("expected %q to contain %q", got, want)
+		}
+	})
 
-		if expected != string(out) {
-			t.Errorf("expected %s, got %s instead", expected, string(out))
+	t.Run("CompleteTask", func(t *testing.T) {
+		cmd := exec.Command(cmdPath, "-complete", "0")
+		fmt.Println(cmd)
+		if err := cmd.Run(); err != nil {
+			t.Fatal(err)
+		}
+
+		listCmd := exec.Command(cmdPath, "-list")
+		out, err := listCmd.CombinedOutput()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if out := strings.TrimSpace(string(out)); out != "" {
+			t.Errorf("expected no incomplete tasks, got %q instead", out)
+		}
+	})
+
+	t.Run("DeleteTask", func(t *testing.T) {
+		if err := exec.Command(cmdPath, "-delete", "0").Run(); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.WriteFile(fileName, []byte{}, 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := exec.Command(cmdPath, "-task", task).Run(); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := exec.Command(cmdPath, "-delete", "0").Run(); err != nil {
+			t.Fatal(err)
+		}
+
+		listCmd := exec.Command(cmdPath, "-list")
+		out, err := listCmd.CombinedOutput()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if out := strings.TrimSpace(string(out)); out != "" {
+			t.Errorf("expected no tasks, got %q instead", out)
 		}
 	})
 }

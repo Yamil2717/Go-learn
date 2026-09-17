@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"todo"
 )
@@ -14,8 +13,10 @@ import (
 const todoFileName = ".todo.json"
 
 func main() {
-	complete := flag.Int("complete", -1, "Marcar una tarea como completada por su indice")
-	delete := flag.Int("delete", -1, "Eliminar una tarea por su indice")
+	list := flag.Bool("list", false, "Listar las tareas pendientes")
+	task := flag.String("task", "", "Agregar una tarea nueva")
+	complete := flag.Int("complete", -1, "Marcar como completada la tarea con el indice dado")
+	delete := flag.Int("delete", -1, "Eliminar la tarea con el indice dado")
 
 	flag.Parse()
 
@@ -33,39 +34,40 @@ func main() {
 		}
 	}
 
-	args := flag.Args()
-
 	switch {
+	case *list:
+		for _, task := range *l {
+			if task.Done {
+				continue
+			}
+			fmt.Printf("Title: %s, Done: %t, CreatedAt: %s, CompletedAt: %s\n", task.Task, task.Done, task.CreatedAt, task.CompletedAt)
+		}
 	case *complete > -1:
 		if err := l.Complete(*complete); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		fmt.Printf("Se completo la tarea %d\n", *complete)
+		if err := l.Save(todoFileName); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	case *delete > -1:
 		if err := l.Delete(*delete); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		fmt.Printf("Se elimino la tarea %d\n", *delete)
-	default:
-		task := strings.Join(args, " ")
-		if task == "" {
-			if len(*l) == 0 {
-				fmt.Println("No hay tareas ingresadas")
-				os.Exit(0)
-			}
-			for _, item := range *l {
-				fmt.Println(item.Task)
-			}
-			os.Exit(0)
+		if err := l.Save(todoFileName); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
-		l.Add(task)
-		fmt.Printf("Se agrego la tarea: %s\n", task)
-	}
-
-	if err := l.Save(todoFileName); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	case *task != "":
+		l.Add(*task)
+		if err := l.Save(todoFileName); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	default:
+		fmt.Fprintln(os.Stderr, "No se especifico ninguna operacion. Usa -help para ver los comandos disponibles")
 		os.Exit(1)
 	}
 }
