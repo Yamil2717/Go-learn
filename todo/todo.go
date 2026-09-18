@@ -80,3 +80,15 @@ func (l *List) Get(filename string) error {
 
 	return nil
 }
+
+func (l *List) String() string {
+	out := ""
+	for i, item := range *l {
+		marker := "[ ]"
+		if item.Done {
+			marker = "[X]"
+		}
+		out += fmt.Sprintf("- %s %d: %s\n", marker, i, item.Task)
+	}
+	return out
+}

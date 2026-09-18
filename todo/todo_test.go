@@ -153,3 +153,19 @@ func TestSaveAndGet(t *testing.T) {
 		}
 	}
 }
+
+func TestString(t *testing.T) {
+	l := &List{}
+
+	l.Add("tarea 1")
+	l.Add("tarea 2")
+	l.Add("tarea 3")
+	l.Complete(0)
+	l.Complete(2)
+
+	want := "- [X] 0: tarea 1\n- [ ] 1: tarea 2\n- [X] 2: tarea 3\n"
+
+	if got := l.String(); got != want {
+		t.Errorf("Se esperaba %q, se obtuvo %q", want, got)
+	}
+}

@@ -72,7 +72,7 @@ func TestTodoCLI(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		want := fmt.Sprintf("Title: %s, Done: false, ", task)
+		want := fmt.Sprintf("- [ ] 0: %s", task)
 		got := strings.TrimSpace(string(out))
 		if !strings.Contains(got, want) {
 			t.Errorf("expected %q to contain %q", got, want)
@@ -92,8 +92,10 @@ func TestTodoCLI(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if out := strings.TrimSpace(string(out)); out != "" {
-			t.Errorf("expected no incomplete tasks, got %q instead", out)
+		want := fmt.Sprintf("- [X] 0: %s", task)
+		got := strings.TrimSpace(string(out))
+		if !strings.Contains(got, want) {
+			t.Errorf("expected %q to contain %q", got, want)
 		}
 	})
 
