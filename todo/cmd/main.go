@@ -23,11 +23,12 @@ func main() {
 	l := &todo.List{}
 
 	data, err := os.ReadFile(todoFileName)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		fmt.Fprintln(os.Stderr, err)
+	switch {
+	case err != nil && errors.Is(err, os.ErrNotExist):
+	case err != nil:
+		fmt.Fprintln(os.Stderr, "Error al leer el archivo:", err)
 		os.Exit(1)
-	}
-	if len(bytes.TrimSpace(data)) > 0 {
+	case len(bytes.TrimSpace(data)) > 0:
 		if err := l.Get(todoFileName); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -36,12 +37,7 @@ func main() {
 
 	switch {
 	case *list:
-		for _, task := range *l {
-			if task.Done {
-				continue
-			}
-			fmt.Printf("Title: %s, Done: %t, CreatedAt: %s, CompletedAt: %s\n", task.Task, task.Done, task.CreatedAt, task.CompletedAt)
-		}
+		fmt.Print(l)
 	case *complete > -1:
 		if err := l.Complete(*complete); err != nil {
 			fmt.Fprintln(os.Stderr, err)
