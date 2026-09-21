@@ -10,9 +10,14 @@ import (
 	"todo"
 )
 
-const todoFileName = ".todo.json"
+const defaultFileName = ".todo.json"
 
 func main() {
+	todoFileName := os.Getenv("TODO_FILENAME")
+	if todoFileName == "" {
+		todoFileName = defaultFileName
+	}
+
 	list := flag.Bool("list", false, "Listar las tareas pendientes")
 	task := flag.String("task", "", "Agregar una tarea nueva")
 	complete := flag.Int("complete", -1, "Marcar como completada la tarea con el indice dado")
