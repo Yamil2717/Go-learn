@@ -1,9 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+
+	"github.com/microcosm-cc/bluemonday"
+	"github.com/russross/blackfriday/v2"
 )
 
 const header = `<!DOCTYPE html>
@@ -21,28 +26,45 @@ const footer = `
 `
 
 func main() {
+	in := flag.String("in", "", "Ruta al archivo markdown de entrada")
 	out := flag.String("out", "", "Nombre del archivo HTML de salida, sin la extension .html")
 	flag.Parse()
 
-	if err := run(*out); err != nil {
+	if err := run(*in, *out); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(out string) error {
-	if out == "" {
-		return fmt.Errorf("El flag -out es obligatorio. Pasa el nombre del archivo sin la extension .html")
+func run(in string, out string) error {
+	if in == "" {
+		return fmt.Errorf("El flag -in es obligatorio. Pasa la ruta al archivo markdown")
 	}
 
-	data := []byte(header + footer)
+	data, err := os.ReadFile(in)
+	if err != nil {
+		return fmt.Errorf("No se pudo leer el archivo %s: %w", in, err)
+	}
 
-	if err := saveHTML(out+".html", data); err != nil {
+	if out == "" {
+		out = filepath.Base(in)
+	}
+
+	body := parseContent(data)
+
+	if err := saveHTML(out+".html", body); err != nil {
 		return err
 	}
 
 	fmt.Printf("Archivo %s.html generado\n", out)
 	return nil
+}
+
+func parseContent(input []byte) []byte {
+	normalized := bytes.ReplaceAll(input, []byte("\r\n"), []byte("\n"))
+	output := blackfriday.Run(normalized)
+	body := bluemonday.UGCPolicy().SanitizeBytes(output)
+	return append([]byte(header), append(body, footer...)...)
 }
 
 func saveHTML(filename string, data []byte) error {
