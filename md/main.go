@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
@@ -27,16 +27,16 @@ const footer = `
 
 func main() {
 	in := flag.String("in", "", "Ruta al archivo markdown de entrada")
-	out := flag.String("out", "", "Nombre del archivo HTML de salida, sin la extension .html")
+	out := flag.String("out", "", "Nombre del archivo HTML de salida; en blanco se usa un archivo temporal")
 	flag.Parse()
 
-	if err := run(*in, *out); err != nil {
+	if err := run(os.Stdout, *in, *out); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(in string, out string) error {
+func run(writer io.Writer, in string, out string) error {
 	if in == "" {
 		return fmt.Errorf("El flag -in es obligatorio. Pasa la ruta al archivo markdown")
 	}
@@ -46,17 +46,27 @@ func run(in string, out string) error {
 		return fmt.Errorf("No se pudo leer el archivo %s: %w", in, err)
 	}
 
+	var outname string
 	if out == "" {
-		out = filepath.Base(in)
+		file, err := os.CreateTemp(".", "md*.html")
+		if err != nil {
+			return fmt.Errorf("No se pudo crear el archivo temporal: %w", err)
+		}
+		if err := file.Close(); err != nil {
+			return fmt.Errorf("No se pudo cerrar el archivo temporal: %w", err)
+		}
+		outname = file.Name()
+	} else {
+		outname = out + ".html"
 	}
 
 	body := parseContent(data)
 
-	if err := saveHTML(out+".html", body); err != nil {
+	if err := saveHTML(outname, body); err != nil {
 		return err
 	}
 
-	fmt.Printf("Archivo %s.html generado\n", out)
+	fmt.Fprintln(writer, outname)
 	return nil
 }
 
