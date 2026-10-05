@@ -7,23 +7,17 @@ import (
 	"net/http"
 )
 
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
-
-	w.Write([]byte("Hello World"))
-}
-
 func main() {
+	host := flag.String("h", "localhost", "Host donde escucha el servidor")
 	port := flag.Int("p", 8080, "Puerto donde escucha el servidor")
 	flag.Parse()
 
-	addr := fmt.Sprintf(":%d", *port)
+	addr := fmt.Sprintf("%s:%d", *host, *port)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", rootHandler)
+	server := &http.Server{
+		Addr:    addr,
+		Handler: newMux(),
+	}
 
-	log.Fatal(http.ListenAndServe(addr, mux))
+	log.Fatal(server.ListenAndServe())
 }
