@@ -8,6 +8,13 @@ import (
 	"testing"
 )
 
+type testCase struct {
+	name            string
+	path            string
+	expectedCode    int
+	expectedContent string
+}
+
 func setupAPI(t *testing.T) (url string, cleaner func()) {
 	t.Helper()
 
@@ -21,58 +28,50 @@ func setupAPI(t *testing.T) (url string, cleaner func()) {
 	return url, cleaner
 }
 
-func TestGetRoot(t *testing.T) {
-	path := "/"
-	expectedCode := http.StatusOK
-	expectedContent := "Hello World"
-
+func TestGet(t *testing.T) {
 	url, cleaner := setupAPI(t)
 	defer cleaner()
 
-	res, err := http.Get(url + path)
-	if err != nil {
-		t.Fatalf("No se pudo hacer la petición GET a %s: %v", url+path, err)
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != expectedCode {
-		t.Errorf("Se esperaba el status %s, se obtuvo %s", http.StatusText(expectedCode), http.StatusText(res.StatusCode))
-	}
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Fatalf("No se pudo leer el cuerpo de la respuesta: %v", err)
-	}
-
-	if !strings.Contains(string(body), expectedContent) {
-		t.Errorf("Se esperaba %q, se obtuvo %q", expectedContent, body)
-	}
-}
-
-func TestGetNotFound(t *testing.T) {
-	path := "/about"
-	expectedCode := http.StatusNotFound
-	expectedContent := "404 page not found"
-
-	url, cleaner := setupAPI(t)
-	defer cleaner()
-
-	res, err := http.Get(url + path)
-	if err != nil {
-		t.Fatalf("No se pudo hacer la petición GET a %s: %v", url+path, err)
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != expectedCode {
-		t.Errorf("Se esperaba el status %s, se obtuvo %s", http.StatusText(expectedCode), http.StatusText(res.StatusCode))
+	testCases := []testCase{
+		{
+			name:            "TestGetRoot",
+			path:            "/",
+			expectedCode:    http.StatusOK,
+			expectedContent: "Hello World",
+		},
+		{
+			name:            "TestGetNotFound",
+			path:            "/about",
+			expectedCode:    http.StatusNotFound,
+			expectedContent: "404 page not found",
+		},
 	}
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Fatalf("No se pudo leer el cuerpo de la respuesta: %v", err)
-	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := http.Get(url + tc.path)
+			if err != nil {
+				t.Fatalf("No se pudo hacer la petición GET a %s: %v", url+tc.path, err)
+			}
+			defer res.Body.Close()
 
-	if !strings.Contains(string(body), expectedContent) {
-		t.Errorf("Se esperaba %q, se obtuvo %q", expectedContent, body)
+			if res.StatusCode != tc.expectedCode {
+				t.Errorf("Se esperaba el status %s, se obtuvo %s", http.StatusText(tc.expectedCode), http.StatusText(res.StatusCode))
+			}
+
+			body, err := io.ReadAll(res.Body)
+			if err != nil {
+				t.Fatalf("No se pudo leer el cuerpo de la respuesta: %v", err)
+			}
+
+			switch res.Header.Get("Content-Type") {
+			case "text/plain; charset=utf-8":
+				if !strings.Contains(string(body), tc.expectedContent) {
+					t.Errorf("Se esperaba %q, se obtuvo %q", tc.expectedContent, body)
+				}
+			default:
+				t.Fatalf("Unsupported Content-Type: %q", res.Header.Get("Content-Type"))
+			}
+		})
 	}
 }
