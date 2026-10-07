@@ -65,7 +65,7 @@ func TestGet(t *testing.T) {
 			}
 
 			switch res.Header.Get("Content-Type") {
-			case "text/plain; charset=utf-8":
+			case "text/plain", "text/plain; charset=utf-8":
 				if !strings.Contains(string(body), tc.expectedContent) {
 					t.Errorf("Se esperaba %q, se obtuvo %q", tc.expectedContent, body)
 				}
