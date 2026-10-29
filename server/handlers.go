@@ -2,7 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/Yamil2717/todo"
 )
@@ -24,6 +27,21 @@ func router(datafile string) http.HandlerFunc {
 			return
 		}
 
+		if r.URL.Path != "/todo" {
+			id, err := validateID(strings.TrimPrefix(r.URL.Path, "/todo/"), &list)
+			if err != nil {
+				errorReply(w, r, http.StatusBadRequest, err.Error())
+				return
+			}
+
+			if r.Method == http.MethodGet {
+				getOneHandler(w, r, &list, id)
+			} else {
+				errorReply(w, r, http.StatusMethodNotAllowed, "Method not allowed")
+			}
+			return
+		}
+
 		switch r.Method {
 		case http.MethodGet:
 			getAllHandler(w, r, &list)
@@ -33,6 +51,19 @@ func router(datafile string) http.HandlerFunc {
 			errorReply(w, r, http.StatusMethodNotAllowed, "Method not allowed")
 		}
 	}
+}
+
+func validateID(value string, list *todo.List) (int, error) {
+	id, err := strconv.Atoi(value)
+	if err != nil || id < 0 || id >= len(*list) {
+		return 0, fmt.Errorf("ID invalido: %s", value)
+	}
+	return id, nil
+}
+
+func getOneHandler(w http.ResponseWriter, r *http.Request, list *todo.List, id int) {
+	response := todoResponse{Results: (*list)[id : id+1]}
+	jsonReply(w, r, http.StatusOK, &response)
 }
 
 func getAllHandler(w http.ResponseWriter, r *http.Request, list *todo.List) {
