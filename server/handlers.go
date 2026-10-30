@@ -34,9 +34,12 @@ func router(datafile string) http.HandlerFunc {
 				return
 			}
 
-			if r.Method == http.MethodGet {
+			switch r.Method {
+			case http.MethodGet:
 				getOneHandler(w, r, &list, id)
-			} else {
+			case http.MethodDelete:
+				deleteHandler(w, r, &list, id, datafile)
+			default:
 				errorReply(w, r, http.StatusMethodNotAllowed, "Method not allowed")
 			}
 			return
@@ -51,6 +54,20 @@ func router(datafile string) http.HandlerFunc {
 			errorReply(w, r, http.StatusMethodNotAllowed, "Method not allowed")
 		}
 	}
+}
+
+func deleteHandler(w http.ResponseWriter, r *http.Request, list *todo.List, id int, datafile string) {
+	if err := list.Delete(id); err != nil {
+		errorReply(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := list.Save(datafile); err != nil {
+		errorReply(w, r, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	textReply(w, r, http.StatusNoContent, "")
 }
 
 func validateID(value string, list *todo.List) (int, error) {
