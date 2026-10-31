@@ -39,6 +39,8 @@ func router(datafile string) http.HandlerFunc {
 				getOneHandler(w, r, &list, id)
 			case http.MethodDelete:
 				deleteHandler(w, r, &list, id, datafile)
+			case http.MethodPatch:
+				completeHandler(w, r, &list, id, datafile)
 			default:
 				errorReply(w, r, http.StatusMethodNotAllowed, "Method not allowed")
 			}
@@ -54,6 +56,25 @@ func router(datafile string) http.HandlerFunc {
 			errorReply(w, r, http.StatusMethodNotAllowed, "Method not allowed")
 		}
 	}
+}
+
+func completeHandler(w http.ResponseWriter, r *http.Request, list *todo.List, id int, datafile string) {
+	if _, ok := r.URL.Query()["complete"]; !ok {
+		errorReply(w, r, http.StatusBadRequest, "Falta el parametro complete")
+		return
+	}
+
+	if err := list.Complete(id); err != nil {
+		errorReply(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := list.Save(datafile); err != nil {
+		errorReply(w, r, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	textReply(w, r, http.StatusNoContent, "")
 }
 
 func deleteHandler(w http.ResponseWriter, r *http.Request, list *todo.List, id int, datafile string) {
