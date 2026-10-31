@@ -19,6 +19,49 @@ type testCase struct {
 	expectedContent string
 }
 
+func TestComplete(t *testing.T) {
+	list := todo.List{}
+	list.Add("Primera tarea")
+	list.Add("Segunda tarea")
+	datafile := filepath.Join(t.TempDir(), "todos.json")
+	if err := list.Save(datafile); err != nil {
+		t.Fatal(err)
+	}
+
+	server := httptest.NewServer(newMux(datafile))
+	defer server.Close()
+
+	for _, tc := range []struct {
+		path   string
+		status int
+	}{
+		{"/todo/0", http.StatusBadRequest},
+		{"/todo/2?complete", http.StatusBadRequest},
+		{"/todo/1?complete", http.StatusNoContent},
+	} {
+		req, err := http.NewRequest(http.MethodPatch, server.URL+tc.path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != tc.status {
+			t.Errorf("Para %s se esperaba status %d, se obtuvo %d", tc.path, tc.status, res.StatusCode)
+		}
+	}
+
+	var saved todo.List
+	if err := saved.Get(datafile); err != nil {
+		t.Fatal(err)
+	}
+	if len(saved) != 2 || saved[0].Done || !saved[1].Done || saved[1].CompletedAt.IsZero() {
+		t.Errorf("Lista guardada inesperada: %+v", saved)
+	}
+}
+
 func TestDelete(t *testing.T) {
 	list := todo.List{}
 	list.Add("Primera tarea")
