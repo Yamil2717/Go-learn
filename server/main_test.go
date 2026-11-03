@@ -1,13 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Yamil2717/todo"
 )
@@ -17,6 +21,7 @@ type testCase struct {
 	path            string
 	expectedCode    int
 	expectedContent string
+	expItems        int
 }
 
 func TestComplete(t *testing.T) {
@@ -156,22 +161,53 @@ func TestGetOne(t *testing.T) {
 	}
 }
 
-func setupAPI(t *testing.T) (url string, cleaner func()) {
+func setupAPI(t *testing.T) string {
 	t.Helper()
 
-	server := httptest.NewServer(newMux("datafile.json"))
-
-	url = server.URL
-	cleaner = func() {
-		server.Close()
+	file, err := os.CreateTemp(t.TempDir(), "todos-*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.WriteString("[]"); err != nil {
+		file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
 	}
 
-	return url, cleaner
+	server := httptest.NewServer(newMux(file.Name()))
+	cleaner := func() {
+		server.Close()
+		if err := os.Remove(file.Name()); err != nil {
+			t.Errorf("No se pudo eliminar el archivo temporal: %v", err)
+		}
+	}
+	t.Cleanup(cleaner)
+
+	for i := 0; i < 3; i++ {
+		var body bytes.Buffer
+		item := struct {
+			Task string `json:"task"`
+		}{Task: fmt.Sprintf("Task %d", i)}
+		if err := json.NewEncoder(&body).Encode(item); err != nil {
+			t.Fatal(err)
+		}
+		res, err := http.Post(server.URL+"/todo", "application/json", &body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != http.StatusCreated {
+			t.Fatalf("Se esperaba status 201, se obtuvo %d", res.StatusCode)
+		}
+	}
+
+	return server.URL
 }
 
 func TestGet(t *testing.T) {
-	url, cleaner := setupAPI(t)
-	defer cleaner()
+	url := setupAPI(t)
 
 	testCases := []testCase{
 		{
@@ -185,6 +221,20 @@ func TestGet(t *testing.T) {
 			path:            "/about",
 			expectedCode:    http.StatusNotFound,
 			expectedContent: "404 page not found",
+		},
+		{
+			name:            "GetAll",
+			path:            "/todo",
+			expectedCode:    http.StatusOK,
+			expectedContent: "Task 0",
+			expItems:        3,
+		},
+		{
+			name:            "GetOne",
+			path:            "/todo/1",
+			expectedCode:    http.StatusOK,
+			expectedContent: "Task 1",
+			expItems:        1,
 		},
 	}
 
@@ -200,15 +250,29 @@ func TestGet(t *testing.T) {
 				t.Errorf("Se esperaba el status %s, se obtuvo %s", http.StatusText(tc.expectedCode), http.StatusText(res.StatusCode))
 			}
 
-			body, err := io.ReadAll(res.Body)
-			if err != nil {
-				t.Fatalf("No se pudo leer el cuerpo de la respuesta: %v", err)
-			}
-
 			switch res.Header.Get("Content-Type") {
 			case "text/plain", "text/plain; charset=utf-8":
+				body, err := io.ReadAll(res.Body)
+				if err != nil {
+					t.Fatalf("No se pudo leer el cuerpo de la respuesta: %v", err)
+				}
 				if !strings.Contains(string(body), tc.expectedContent) {
 					t.Errorf("Se esperaba %q, se obtuvo %q", tc.expectedContent, body)
+				}
+			case "application/json":
+				var response struct {
+					Results      todo.List `json:"results"`
+					Date         time.Time `json:"date"`
+					TotalResults int       `json:"total_results"`
+				}
+				if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
+					t.Fatalf("No se pudo decodificar la respuesta: %v", err)
+				}
+				if response.TotalResults != tc.expItems || len(response.Results) != tc.expItems {
+					t.Errorf("Se esperaban %d tareas, se obtuvo total %d y %d resultados", tc.expItems, response.TotalResults, len(response.Results))
+				}
+				if len(response.Results) == 0 || response.Results[0].Task != tc.expectedContent {
+					t.Errorf("Se esperaba la primera tarea %q, se obtuvo %+v", tc.expectedContent, response.Results)
 				}
 			default:
 				t.Fatalf("Unsupported Content-Type: %q", res.Header.Get("Content-Type"))
