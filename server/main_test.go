@@ -24,6 +24,53 @@ type testCase struct {
 	expItems        int
 }
 
+func TestAdd(t *testing.T) {
+	url := setupAPI(t)
+	taskName := "Nueva tarea"
+
+	if !t.Run("Add", func(t *testing.T) {
+		var body bytes.Buffer
+		item := struct {
+			Task string `json:"task"`
+		}{Task: taskName}
+		if err := json.NewEncoder(&body).Encode(item); err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := http.Post(url+"/todo", "application/json", &body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusCreated {
+			t.Fatalf("Se esperaba status 201, se obtuvo %d", res.StatusCode)
+		}
+	}) {
+		return
+	}
+
+	t.Run("CheckAdd", func(t *testing.T) {
+		res, err := http.Get(url + "/todo/3")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			t.Fatalf("Se esperaba status 200, se obtuvo %d", res.StatusCode)
+		}
+
+		var response struct {
+			Results todo.List `json:"results"`
+		}
+		if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
+			t.Fatal(err)
+		}
+		if len(response.Results) != 1 || response.Results[0].Task != taskName {
+			t.Errorf("Se esperaba la tarea %q, se obtuvo %+v", taskName, response.Results)
+		}
+	})
+}
+
 func TestComplete(t *testing.T) {
 	list := todo.List{}
 	list.Add("Primera tarea")
