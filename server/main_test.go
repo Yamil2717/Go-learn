@@ -72,6 +72,57 @@ func TestAdd(t *testing.T) {
 }
 
 func TestComplete(t *testing.T) {
+	url := setupAPI(t)
+
+	if !t.Run("Complete", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPatch, url+"/todo/0?complete", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusNoContent {
+			t.Fatalf("Se esperaba status 204, se obtuvo %d", res.StatusCode)
+		}
+	}) {
+		return
+	}
+
+	t.Run("CheckComplete", func(t *testing.T) {
+		res, err := http.Get(url + "/todo")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			t.Fatalf("Se esperaba status 200, se obtuvo %d", res.StatusCode)
+		}
+
+		var response struct {
+			Results      todo.List `json:"results"`
+			TotalResults int       `json:"total_results"`
+		}
+		if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
+			t.Fatal(err)
+		}
+		if len(response.Results) != 3 || response.TotalResults != len(response.Results) {
+			t.Fatalf("Se esperaban 3 tareas, se obtuvo total %d y %d resultados", response.TotalResults, len(response.Results))
+		}
+		if !response.Results[0].Done {
+			t.Error("Se esperaba que la primera tarea estuviera completada")
+		}
+		for _, item := range response.Results[1:] {
+			if item.Done {
+				t.Errorf("Se esperaba que la tarea %q estuviera incompleta", item.Task)
+			}
+		}
+	})
+}
+
+func TestCompleteExisting(t *testing.T) {
 	list := todo.List{}
 	list.Add("Primera tarea")
 	list.Add("Segunda tarea")
